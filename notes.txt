@@ -1,0 +1,62 @@
+
+		    My propeller CNC Controller Software
+
+The idea is to use one cog per motor, so for a reprap that is 4 cogs (x,y,z,
+extruder).
+
+One cog can be the G-Code interpreter
+
+One cog can drive a display (multi-line lcd or vga)
+
+--------------------
+
+The X/Y coordinates seem to be in millimeters, and the build area is 20 cm x 20
+cm, which is 200mm by 200mm. 
+
+I can use an 8.8 Fixed Point system for tracking all the coordinates
+
+One motor can run at full speed, and the other will run slower. The interpreter
+can determine how slow the slow motor needs to go to make a straight line.
+
+One problem I'd like to deal with is that we are dealing with physical devices,
+so taking acceleration/deceleration into account could be important. Apparently
+it helps in accuracy.
+
+Also - one fellow was talking about what happens at corners. When the printer
+heads to a corner, then wants to change direction, there is some deceleration
+and then acceleration, so the amount of material involved will change unless the
+extruder is slowed down to take this into account. And you must take into
+account the spring constant of the plastic, so that when you tell the extruder
+to slow down, you tell it soon enough so that the plastic doesn't just run on by
+itself. All of these changes are pretty small, but necessary for a high quality
+build.
+
+
+------------------
+* Need to be able to read the microSD card for file storage
+* also need to be able to accept line by line instructions from a host over usb
+
+
+--------------
+Pin Usage:
+
+P0-P5: LCD Display
+
+The motors will use 3 pins, x = data pin, x+1 = shift pin, x+2 = output pin
+DS: data pin
+SHCP: shift pin
+STCP: output pin
+
+
+P6-P8: Motor 1  
+P9-P11: Motor 2
+P12-P14: Motor 3
+P15-P17: Motor 4
+
+P28: SCL - I2C Serial clock pin
+P29: SDA - I2C Serial data pin
+P30: TX - USB
+P31: RX - USB
+
+Test
+
