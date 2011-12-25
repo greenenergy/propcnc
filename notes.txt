@@ -13,7 +13,8 @@ One cog can drive a display (multi-line lcd or vga)
 The X/Y coordinates seem to be in millimeters, and the build area is 20 cm x 20
 cm, which is 200mm by 200mm. 
 
-I can use an 8.8 Fixed Point system for tracking all the coordinates
+I can use an 8.8 Fixed Point system for tracking all the coordinates. This
+allows 256 fractional steps, which is twice as good as two digits of precision.
 
 One motor can run at full speed, and the other will run slower. The interpreter
 can determine how slow the slow motor needs to go to make a straight line.
@@ -58,5 +59,70 @@ P29: SDA - I2C Serial data pin
 P30: TX - USB
 P31: RX - USB
 
-Test
+----------------------
+Circumference of a circle: pi*diameter.
+
+Assuming that the spindle has a diameter of 1cm, the circumference would be
+3.1415927 cm or 31.41 mm.
+
+One degree rotation represents .008726646 cm, or .0872 mm.
+
+One full step = 1.8*.0872 or .157 mm
+
+1/16 step = (1.8/16)*.0872 or .00981 mm
+
+So a distance of 10 cm = 100mm = 100/.157 or 636.94 steps
+
+------------------------
+So - the next big question is, where are the calculations done? How much work is
+done by the individual motor drivers, and how much by the master controller?
+
+I want the motors to be as perfectly in sync as possible. To this end, they must
+be predictable and deterministic. To calculate the various parameters will
+involve doing divides and multiplies. These are looping instructions and
+therefore can take a variable amount of time. If each motor is going to have to
+figure out for itself what it's doing, then the time it takes to actually get
+going will be non-deterministic, and not in sync with the other motor.
+
+So it seems that the master controller has to calculate the breakdown for each
+motor and then give the motor fine grained information.
+
+I also would like to implement acceleration & deceleration, but the motors must
+be coordinated or you will get crooked lines. The only way to coordinate them
+would be to have the master controller do the coordinating.
+
+---------------
+Another thing to think about is how to use microstepping. As I see it, the best
+place for microstepping is either during curves, or for whichever axis is going
+slow. If we have a move where one axis is moving a long way and another is
+moving a short way - a very acute angle in other words, then the short axis
+could use microstepping so that the individual steps don't stand out so much.
+When doing line draws, it's the long, shallow lines that show the worst
+aliasing, since the step really stands out from the long straight parts.
+
+So we have 1/2, 1/4, 1/8 and 1/16 steps. When do we use a particular step type?
+The higher the ratio between one motor to the other, the more micro the
+stepping. If we're doing a 45 degree slope, both motors can turn as fast as
+possible - minimum interstep delay. 
+
+The worst case would be one axis going 200.00 mm and the other going 0.01 mm.
+That one hundredth of a millimeter has to be spread somehow over the iterations
+that the other motor will take over 200 millimeters of travel.
+
+If we go with full stepping for the fast motor, the number of steps will be
+(assuming 200mm of travel):
+
+pi = 3.14
+circum = pi * diameter
+onedegree_dist = circum / 360
+
+numsteps = 200.00 / onedegree_dist
+
+
+
+Given a diameter of 1cm, this yields 22,929.94 steps for a full run. That number
+will not fit in 16 bits. So I could use a 20.12 format, so we could store
+numbers up to 1 million with 4096 subdivisions of accuracy (so somewhere between
+3 and 4 decimal places).
+
 

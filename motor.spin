@@ -46,7 +46,8 @@ The question is - what do we use as an interstep delay? I guess I can figure out
 step delay would be, and then divide that delay by 16 for the 16th step, so in a given period of
 time we move the same distance, but in 16 steps instead of one.
 
-
+When you start the cog, make sure that the firstpin value is correct before starting it,
+because this is loaded once and then cached for the duration.
 
 Questions:
 * What about curves? That will require acceleration/deceleration, and two motors will have to be in sync
@@ -84,6 +85,11 @@ entry
               add             base, #4
               mov             delay_addr, base
 
+              rdlong          firstpin, firstpin_addr
+              mov             accum, #%111
+              shl             accum, firstpin
+              mov             dira, accum                                       ' set the output mask
+
 checkit
               rdlong          execute, execute_addr
               cmp             execute, #2       wz                              ' Wait for main prog to signal us
@@ -93,12 +99,20 @@ checkit
               ' We really only need to read the firstpin the first time, but this keeps the code
               ' simpler, not having any special cases
 
-              rdlong          firstpin, firstpin_addr
               rdlong          direction, direction_addr
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
 
               ' Ok, we have the data. Time for the output.
+
+              ' First, build up the output value
+              ' Then, output them one at a time to the shift register
+              ' Then, trigger the shift register to output them all
+
+              'mov             accum, #1
+              'shl             accum, firstpin
+              'mov             outa, accum
+
 
 
               wrlong          execute_addr, #0
