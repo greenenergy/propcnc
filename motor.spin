@@ -115,9 +115,6 @@ checkit
    if_nz      jmp             checkit
               wrlong          execute_addr, #1                                  ' Tell main prog we're on it
 
-              ' We really only need to read the firstpin the first time, but this keeps the code
-              ' simpler, not having any special cases
-
               rdlong          direction, direction_addr
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
@@ -133,8 +130,10 @@ checkit
               'mov             outa, accum
 
               ' half step output value =
-              mov             stepsize, #%001
+              mov             stepsize, #%001           ' Force a step size of 1/2 steps
+              mov             outercount, distance
 
+loopstart
               mov             outaccum, stepsize        ' Get the step size
               shl             outaccum, #2              ' Shift it into position
               mov             accum, direction          ' Get the direction (0 = clockwise, 1 = counterclockwise)
@@ -148,12 +147,41 @@ checkit
               mov             loopcnt, #5
 :shiftloop
               shr             outaccum, #1  wc
-              rcl             accum, #1
-              or              accum, #%10
+              rcl             accum, #1                 ' Set the low bit (the data bit) for the shift reg
+              or              accum, #%10               ' Set the shift-clock bit
+              shl             accum, firstpin           ' Shift the composite into position
+              mov             outa, accum               ' and output
+
+              djnz            loopcnt, #:shiftloop
+
+dump
+              mov             accum, #%100              ' Now clock the accumulated register to its output pins
+              shl             accum, firstpin
+              mov             outa, accum
+
+              waitcnt         time, delay               ' Wait a reasonable time
+clear
+              ' Now we need to set the step flag to 0 for the motor, so we will then be able to trigger it again.
+              ' Question: I am turning on the step for a certain amount of time (20_000 cycles say). Do I need to turn
+              ' it off for an equivalent time, or can I do it for a much shorter time? This could lead to much
+              ' smoother and faster motor use.
+
+              ' So now we just force out 5 0 characters and then wait
+              mov             loopcnt, #5
+:shiftloop
+              mov             accum, #%10               ' clock out a full 5 zeros
+              shl             accum, firstpin
               mov             outa, accum
               djnz            loopcnt, #:shiftloop
 
-              waitcnt          time, delay
+              mov             accum, #%100              ' Now clock the accumulated register to its output pins
+              shl             accum, firstpin
+              mov             outa, accum
+
+              waitcnt         time, delay               ' Wait a reasonable time
+
+              djnz            outercount, loopstart
+
               wrlong          execute_addr, #0
               jmp             checkit
 
@@ -173,6 +201,7 @@ direction_addr res 1
 distance_addr  res 1
 delay_addr     res 1
 loopcnt        res 1
+outercount     res 1
 
 outaccum   res   1
 accum      res   1
