@@ -20,6 +20,20 @@ Step patterns
 
    These values are to be shifted left by 2, because the low two bits are "step" and "direction".
 
+Output pins from shift register:
+  P0 : Step
+  P1 : Direction
+  P2 : MS1
+  P3 : MS2
+  P4 : MS3
+
+So a full step one direction is: %00011
+Other direction:                 %00001
+
+Half step one direction: %00111
+Other direction          %00101
+
+So: (Stepsize << 2) | (direction << 1) | 1
 
 ----
 USAGE:
@@ -90,7 +104,12 @@ entry
               shl             accum, firstpin
               mov             dira, accum                                       ' set the output mask
 
+              mov             time, cnt
+              add             time, idledelay
+              mov             delay, idledelay
+
 checkit
+              waitcnt         time, delay
               rdlong          execute, execute_addr
               cmp             execute, #2       wz                              ' Wait for main prog to signal us
    if_nz      jmp             checkit
@@ -113,23 +132,49 @@ checkit
               'shl             accum, firstpin
               'mov             outa, accum
 
+              ' half step output value =
+              mov             stepsize, #%001
 
+              mov             outaccum, stepsize        ' Get the step size
+              shl             outaccum, #2              ' Shift it into position
+              mov             accum, direction          ' Get the direction (0 = clockwise, 1 = counterclockwise)
+              shl             accum, #1                 ' shift into position
+              or              outaccum, accum           ' merge with outaccum
+              or              outaccum, #1              ' set the 'step' bit in outaccum
 
+              rev             outaccum, #5   ' Flip the low 5 bits so we can dump to shift register
+
+              mov             accum, #0
+              mov             loopcnt, #5
+:shiftloop
+              shr             outaccum, #1  wc
+              rcl             accum, #1
+              or              accum, #%10
+              mov             outa, accum
+              djnz            loopcnt, #:shiftloop
+
+              waitcnt          time, delay
               wrlong          execute_addr, #0
               jmp             checkit
 
-interstep     res 1
+idledelay     long      10_000
+
+stepsize      res 1
+delay         res 1
 execute       res 1
 distance      res 1
 firstpin      res 1
 direction     res 1
+time          res 1
 
 execute_addr   res 1
 firstpin_addr  res 1
 direction_addr res 1
 distance_addr  res 1
 delay_addr     res 1
+loopcnt        res 1
 
+outaccum   res   1
 accum      res   1
 base       res   1
 

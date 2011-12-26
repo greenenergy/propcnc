@@ -114,9 +114,9 @@ If we go with full stepping for the fast motor, the number of steps will be
 
 pi = 3.14
 circum = pi * diameter
-onedegree_dist = circum / 360
+onedegree_dist = circum / 360 = .0087222, or .01 with rounding.
 
-numsteps = 200.00 / onedegree_dist
+numsteps = 200.00 / onedegree_dist = 22929.94
 
 
 
@@ -124,5 +124,30 @@ Given a diameter of 1cm, this yields 22,929.94 steps for a full run. That number
 will not fit in 16 bits. So I could use a 20.12 format, so we could store
 numbers up to 1 million with 4096 subdivisions of accuracy (so somewhere between
 3 and 4 decimal places).
+
+Let's assume a minimum interstep delay of 20,000 cycles. With a clock frequency
+of 80 MHz, that is a step rate of 4000 Hz. Half stepping, that's 10 rotations/sec.
+
+22929/4000 = 5.7 seconds. So if one motor has to go .1 mm in 5.7 seconds, it
+could be done in several ways. Since one full step increment is .01 mm, then it
+could be done with a 2.5 second wait and one full step.
+
+Or a 1.25 sec wait and two half steps.
+Or a 0.625 sec wait and four quarter steps
+Or a 0.3125 sec wait and eight eighth steps
+Or a 0.15625 sec wait and sixteen sixteenth steps.
+
+a 0.15625 sec wait at 80 MHz = 12,500,000
+
+--------------------------------------
+Another issue I'd like to keep considering is accumulated error. If I'm only
+using 8.8 precision, over a large build area that is a lot of potential
+accumulated error. I imagine this would show up on long straight edges as not
+being straight.
+
+Is there some cheap and effective way to introduce error correction?
+
+
+
 
 
