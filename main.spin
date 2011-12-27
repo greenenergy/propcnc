@@ -40,7 +40,16 @@ PUB Main | x
     LCD.Goto(0,2)
     FORMAT.itoa(x, @charstr)
     LCD.WriteString( @charstr )
+
+    ' Now write out the execute flag
+    LCD.Goto(0,3)
+    FORMAT.itoa(motor_a[exec], @charstr)
+    LCD.WriteString( @charstr )
+
     x += 1
+
+    if (x//10) == 0
+      motor_a[exec] := 2
 
     outa[20] ^= 1
     waitcnt(cnt + (clkfreq/2))

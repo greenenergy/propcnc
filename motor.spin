@@ -118,23 +118,21 @@ entry
 ''              jmp             #stophere
 
 
-
-
               mov             accum, #%111
               shl             accum, firstpin
               mov             dira, accum                                       ' set the output mask
 
 
+'              ' Make sure our output pins are working
+'              mov             outa, accum
+'stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
+'              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
+'              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
+
 
               mov             time, cnt
               add             time, idledelay
               mov             delay, idledelay
-
-
-''stophere
-''              waitcnt         time, idledelay
-''              jmp             #stophere
-
 checkit
               waitcnt         time, delay
               rdlong          execute, execute_addr
@@ -146,8 +144,7 @@ checkit
 ''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
 ''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
 
-              mov             accum, #1
-              wrlong          accum, execute_addr                                  ' Tell main prog we're on it
+              wrlong          changing, execute_addr                                  ' Tell main prog we're on it
 
 ''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
 ''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
@@ -158,26 +155,14 @@ checkit
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
 
-
-
-
               ' Ok, we have the data. Time for the output.
 
               ' First, build up the output value
               ' Then, output them one at a time to the shift register
               ' Then, trigger the shift register to output them all
 
-              'mov             accum, #1
-              'shl             accum, firstpin
-              'mov             outa, accum
-
-              ' half step output value =
               mov             stepsize, #%001           ' Force a step size of 1/2 steps
               mov             outercount, distance
-
-
-
-
 
 loopstart
               mov             outaccum, stepsize        ' Get the step size
@@ -196,7 +181,7 @@ loopstart
               rcl             accum, #1                 ' Set the low bit (the data bit) for the shift reg
 
               shl             accum, firstpin
-              mov             outa, firstpin
+              mov             outa, accum
 
               mov              accum, #%10               ' Set the shift-clock bit
               'or              accum, #%10               ' Set the shift-clock bit
@@ -233,11 +218,13 @@ clear
 
               djnz            outercount, #loopstart
 
-              mov             accum, #0
-              wrlong          accum, execute_addr          ' Tell the master control that we're done
+              wrlong          finished, execute_addr          ' Tell the master control that we're done
               jmp             #checkit
 
 idledelay     long      20_000
+
+changing      long      1                       ' Signal master controller we're under way
+finished      long      0                       ' Signal master controller we're done
 
 stepsize      res 1
 delay         res 1
