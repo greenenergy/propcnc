@@ -11,26 +11,39 @@ delay = 4
 OBJ
   LCD        : "Nokia5110.spin"
   MOTOR      : "motor.spin"
+  FORMAT     : "Format.spin"
 
 VAR
   long motor_a[5], motor_b[5], motor_c[5], motor_d[5]
-
   long cogs[4]
+  byte charstr[64]
 
 
 PUB Main | x
-
-  Bootup
+  dira[20]~~
 
   motor_a[direction] := 1
   motor_a[distance] := 3000
-  motor_a[delay] := 40_000
+  motor_a[delay] := 20_000
+
+  Bootup
+
+
   motor_a[exec] := 2         ' go
 
 
+  LCD.Goto(0, 1)
+  LCD.WriteString( string("Looping") )
+
+  x := 1
   repeat
-    x := 1
-    waitcnt(cnt + (clkfreq/60))
+    LCD.Goto(0,2)
+    FORMAT.itoa(x, @charstr)
+    LCD.WriteString( @charstr )
+    x += 1
+
+    outa[20] ^= 1
+    waitcnt(cnt + (clkfreq/2))
 
 
 PUB Bootup
@@ -55,7 +68,12 @@ PUB Bootup
   ' ----------------------------
 
 
-  cogs[0] := MOTOR.start(@motor_a)
+  'cogs[0] := MOTOR.start(@motor_a)
+  MOTOR.start(@motor_a)
+
+  LCD.Goto(0, 0)
+  LCD.WriteString( string("Motor Started ") )
+
   'cogs[1] = MOTOR.start(@motor_b)
   'cogs[2] = MOTOR.start(@motor_c)
   'cogs[3] = MOTOR.start(@motor_d)

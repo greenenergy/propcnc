@@ -68,15 +68,18 @@ Questions:
 * What about linear acceleration/deceleration to take into account the fact that the head cannot move instantaneously?
 
 }}
+CON
+'_clkmode = xtal1+pll16x
+'_xinfreq = 5_000_000
 
-VAR
-  long  cog
+'VAR
+'  long  cog
 
-PUB start(ptr)
+PUB start(ptr) : cog
 
   cog := cognew(@entry, ptr) +1
 
-PUB stop
+PUB stop(cog)
 
   if cog
     cogstop(cog~ -1 )
@@ -100,24 +103,63 @@ entry
               mov             delay_addr, base
 
               rdlong          firstpin, firstpin_addr
+
+
+
+''              rdlong          delay, delay_addr
+''              mov             accum,#15                 ' set the direction register
+''              shl             accum, #16
+''              mov             dira, accum
+''              mov             accum, firstpin
+''              shl             accum, #16             ' now take the firstpin & shift into LED position
+''              mov             outa, accum            ' and light up some leds
+''stophere
+''              waitcnt         time, idledelay
+''              jmp             #stophere
+
+
+
+
               mov             accum, #%111
               shl             accum, firstpin
               mov             dira, accum                                       ' set the output mask
+
+
 
               mov             time, cnt
               add             time, idledelay
               mov             delay, idledelay
 
+
+''stophere
+''              waitcnt         time, idledelay
+''              jmp             #stophere
+
 checkit
               waitcnt         time, delay
               rdlong          execute, execute_addr
               cmp             execute, #2       wz                              ' Wait for main prog to signal us
-   if_nz      jmp             checkit
-              wrlong          execute_addr, #1                                  ' Tell main prog we're on it
+   if_nz      jmp             #checkit
+
+
+''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
+''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
+''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
+
+              mov             accum, #1
+              wrlong          accum, execute_addr                                  ' Tell main prog we're on it
+
+''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
+''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
+''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
+
 
               rdlong          direction, direction_addr
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
+
+
+
 
               ' Ok, we have the data. Time for the output.
 
@@ -133,6 +175,10 @@ checkit
               mov             stepsize, #%001           ' Force a step size of 1/2 steps
               mov             outercount, distance
 
+
+
+
+
 loopstart
               mov             outaccum, stepsize        ' Get the step size
               shl             outaccum, #2              ' Shift it into position
@@ -143,12 +189,17 @@ loopstart
 
               rev             outaccum, #5   ' Flip the low 5 bits so we can dump to shift register
 
-              mov             accum, #0
               mov             loopcnt, #5
 :shiftloop
+              mov             accum, #0
               shr             outaccum, #1  wc
               rcl             accum, #1                 ' Set the low bit (the data bit) for the shift reg
-              or              accum, #%10               ' Set the shift-clock bit
+
+              shl             accum, firstpin
+              mov             outa, firstpin
+
+              mov              accum, #%10               ' Set the shift-clock bit
+              'or              accum, #%10               ' Set the shift-clock bit
               shl             accum, firstpin           ' Shift the composite into position
               mov             outa, accum               ' and output
 
@@ -168,11 +219,11 @@ clear
 
               ' So now we just force out 5 0 characters and then wait
               mov             loopcnt, #5
-:shiftloop
+:sloop
               mov             accum, #%10               ' clock out a full 5 zeros
               shl             accum, firstpin
               mov             outa, accum
-              djnz            loopcnt, #:shiftloop
+              djnz            loopcnt, #:sloop
 
               mov             accum, #%100              ' Now clock the accumulated register to its output pins
               shl             accum, firstpin
@@ -180,12 +231,13 @@ clear
 
               waitcnt         time, delay               ' Wait a reasonable time
 
-              djnz            outercount, loopstart
+              djnz            outercount, #loopstart
 
-              wrlong          execute_addr, #0
-              jmp             checkit
+              mov             accum, #0
+              wrlong          accum, execute_addr          ' Tell the master control that we're done
+              jmp             #checkit
 
-idledelay     long      10_000
+idledelay     long      20_000
 
 stepsize      res 1
 delay         res 1
