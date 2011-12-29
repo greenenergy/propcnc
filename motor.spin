@@ -104,31 +104,9 @@ entry
 
               rdlong          firstpin, firstpin_addr
 
-
-
-''              rdlong          delay, delay_addr
-''              mov             accum,#15                 ' set the direction register
-''              shl             accum, #16
-''              mov             dira, accum
-''              mov             accum, firstpin
-''              shl             accum, #16             ' now take the firstpin & shift into LED position
-''              mov             outa, accum            ' and light up some leds
-''stophere
-''              waitcnt         time, idledelay
-''              jmp             #stophere
-
-
               mov             accum, #%111
               shl             accum, firstpin
               mov             dira, accum                                       ' set the output mask
-
-
-'              ' Make sure our output pins are working
-'              mov             outa, accum
-'stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
-'              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
-'              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
-
 
               mov             time, cnt
               add             time, idledelay
@@ -139,21 +117,18 @@ checkit
               cmp             execute, #2       wz                              ' Wait for main prog to signal us
    if_nz      jmp             #checkit
 
-
-''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
-''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
-''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
-
               wrlong          changing, execute_addr                                  ' Tell main prog we're on it
 
 ''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
 ''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
 ''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
 
-
               rdlong          direction, direction_addr
+              and             direction, #1
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
+              mov             halfdelay, delay
+              shr             halfdelay, #1
 
               ' Ok, we have the data. Time for the output.
 
@@ -165,6 +140,9 @@ checkit
               mov             outercount, distance
 
 loopstart
+              ' By having the loopstart here, rather than right before the call to #output, we have the possibility
+              ' to do acceleration/deceleration, where every step of the motor could have a different step size and
+              ' different delay vaoue
               mov             outaccum, stepsize        ' Get the step size
               shl             outaccum, #2              ' Shift it into position
               mov             accum, direction          ' Get the direction (0 = clockwise, 1 = counterclockwise)
@@ -172,54 +150,72 @@ loopstart
               or              outaccum, accum           ' merge with outaccum
               or              outaccum, #1              ' set the 'step' bit in outaccum
 
-              rev             outaccum, #5   ' Flip the low 5 bits so we can dump to shift register
+              mov             downtime, outaccum
+              xor             downtime, #1              ' turn off the step bit
 
-              mov             loopcnt, #5
-:shiftloop
-              mov             accum, #0
-              shr             outaccum, #1  wc
-              rcl             accum, #1                 ' Set the low bit (the data bit) for the shift reg
-
-              shl             accum, firstpin
-              mov             outa, accum
-
-              mov              accum, #%10               ' Set the shift-clock bit
-              'or              accum, #%10               ' Set the shift-clock bit
-              shl             accum, firstpin           ' Shift the composite into position
-              mov             outa, accum               ' and output
-
-              djnz            loopcnt, #:shiftloop
-
-dump
-              mov             accum, #%100              ' Now clock the accumulated register to its output pins
-              shl             accum, firstpin
-              mov             outa, accum
+              call            #output
 
               waitcnt         time, delay               ' Wait a reasonable time
-clear
+
               ' Now we need to set the step flag to 0 for the motor, so we will then be able to trigger it again.
               ' Question: I am turning on the step for a certain amount of time (20_000 cycles say). Do I need to turn
               ' it off for an equivalent time, or can I do it for a much shorter time? This could lead to much
               ' smoother and faster motor use.
 
               ' So now we just force out 5 0 characters and then wait
-              mov             loopcnt, #5
-:sloop
-              mov             accum, #%10               ' clock out a full 5 zeros
-              shl             accum, firstpin
-              mov             outa, accum
-              djnz            loopcnt, #:sloop
 
-              mov             accum, #%100              ' Now clock the accumulated register to its output pins
-              shl             accum, firstpin
-              mov             outa, accum
+              mov             outaccum, downtime
+              call            #output
 
-              waitcnt         time, delay               ' Wait a reasonable time
+              waitcnt         time, halfdelay               ' Wait a reasonable time
 
               djnz            outercount, #loopstart
 
               wrlong          finished, execute_addr          ' Tell the master control that we're done
               jmp             #checkit
+
+
+              ' A final output and stop location
+dummy
+              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
+              jmp             #dummy                    ' <<<<<<<<<<<<<<<<<<<<<<<
+
+' *****************************************************
+
+' the output function will take whatever is in outaccum and send it out. Also uses loopcnt and accum. It preserves
+' outaccum, so you can re-use it.
+'
+' When writing to the shift register, I thought I could write to both the data and shift pins at the same time, but
+' apparently that's not the way to do it. You write out the data pin (Px in my setup) and then you write out the shift
+' clock (Px+1) (%10), and once you've done that for all the bits, you write out the dump clock Px+2 (%100).
+
+output
+              mov               outwork, outaccum
+              rev               outwork, #27   ' Flip the low 5 (32-27) bits so we can dump to shift register
+              mov               loopcnt, #5
+:shiftloop
+              mov               accum, #0
+
+              shr               outwork, #1  wc
+              rcl               accum, #1                 ' Set the low bit (the data bit) for the shift reg
+
+              shl               accum, firstpin
+              mov               outa, accum
+
+              mov               accum, #%10               ' Set the shift-clock bit
+              shl               accum, firstpin           ' Shift the composite into position
+              mov               outa, accum               ' and output
+
+              djnz              loopcnt, #:shiftloop
+dump
+              mov               accum, #%100              ' Now clock the accumulated register to its output pins
+              shl               accum, firstpin
+              mov               outa, accum
+
+output_ret
+              ret
+
+' ******************************************************
 
 idledelay     long      20_000
 
@@ -228,6 +224,7 @@ finished      long      0                       ' Signal master controller we're
 
 stepsize      res 1
 delay         res 1
+halfdelay     res 1
 execute       res 1
 distance      res 1
 firstpin      res 1
@@ -241,8 +238,10 @@ distance_addr  res 1
 delay_addr     res 1
 loopcnt        res 1
 outercount     res 1
+outwork        res 1 ' workspace for the output func
 
 outaccum   res   1
+downtime   res   1
 accum      res   1
 base       res   1
-
+debugpin   res   1

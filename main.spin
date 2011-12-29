@@ -26,10 +26,15 @@ PUB Main | x
   motor_a[distance] := 3000
   motor_a[delay] := 20_000
 
+  motor_b[direction] := 0
+  motor_b[distance] := 3000
+  motor_b[delay] := 20_000
+
   Bootup
 
 
   motor_a[exec] := 2         ' go
+  motor_b[exec] := 2         ' go
 
 
   LCD.Goto(0, 1)
@@ -48,8 +53,14 @@ PUB Main | x
 
     x += 1
 
-    if (x//10) == 0
+    ' Every 10 steps, trigger the motor again. With the current parameters,
+    ' it takes about 2-3 seconds for the motor to finish and set exec to 0.
+    if (x//5) == 0
+      motor_a[direction] ^= 1
       motor_a[exec] := 2
+
+      motor_b[direction] ^= 1
+      motor_b[exec] := 2
 
     outa[20] ^= 1
     waitcnt(cnt + (clkfreq/2))
@@ -79,6 +90,7 @@ PUB Bootup
 
   'cogs[0] := MOTOR.start(@motor_a)
   MOTOR.start(@motor_a)
+  MOTOR.start(@motor_b)
 
   LCD.Goto(0, 0)
   LCD.WriteString( string("Motor Started ") )
