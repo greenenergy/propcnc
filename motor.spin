@@ -128,7 +128,7 @@ checkit
               rdlong          distance, distance_addr
               rdlong          delay, delay_addr
               mov             halfdelay, delay
-              shr             halfdelay, #1
+              'shr             halfdelay, #1
 
               ' Ok, we have the data. Time for the output.
 
