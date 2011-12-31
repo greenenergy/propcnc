@@ -91,44 +91,39 @@ DAT
         ' Px+1 = Shifts the register by 1                    - SRCLK, pin 11
         ' Px+2 = Sets the output pins to the register value  - RCLK, pin 12
 entry
-              mov             base, par
-              mov             execute_addr, base
-              add             base, #4
-              mov             firstpin_addr, base
-              add             base, #4
-              mov             direction_addr, base
-              add             base, #4
-              mov             distance_addr, base
-              add             base, #4
-              mov             delay_addr, base
+              mov               base, par
+              mov               execute_addr, base
+              add               base, #4
+              mov               firstpin_addr, base
+              add               base, #4
+              mov               direction_addr, base
+              add               base, #4
+              mov               distance_addr, base
+              add               base, #4
+              mov               delay_addr, base
 
-              rdlong          firstpin, firstpin_addr
+              rdlong            firstpin, firstpin_addr
 
-              mov             accum, #%111
-              shl             accum, firstpin
-              mov             dira, accum                                       ' set the output mask
+              mov               accum, #%111
+              shl               accum, firstpin
+              mov               dira, accum                                       ' set the output mask
 
-              mov             time, cnt
-              add             time, idledelay
-              mov             delay, idledelay
+              mov               time, cnt
+              add               time, idledelay
+              mov               delay, idledelay
 checkit
-              waitcnt         time, delay
-              rdlong          execute, execute_addr
-              cmp             execute, #2       wz                              ' Wait for main prog to signal us
-   if_nz      jmp             #checkit
+              waitcnt           time, delay
+              rdlong            execute, execute_addr
+              cmp               execute, #2       wz                              ' Wait for main prog to signal us
+   if_nz      jmp               #checkit
 
-              wrlong          changing, execute_addr                                  ' Tell main prog we're on it
+              wrlong            changing, execute_addr                                  ' Tell main prog we're on it
 
-''stophere                                                ' <<<<<<<<<<<<<<<<<<<<<<<
-''              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
-''              jmp             #stophere                 ' <<<<<<<<<<<<<<<<<<<<<<<
-
-              rdlong          direction, direction_addr
-              and             direction, #1
-              rdlong          distance, distance_addr
-              rdlong          delay, delay_addr
-              mov             halfdelay, delay
-              'shr             halfdelay, #1
+              rdlong            direction, direction_addr
+              and               direction, #1
+              rdlong            distance, distance_addr
+              rdlong            delay, delay_addr
+              mov               halfdelay, delay
 
               ' Ok, we have the data. Time for the output.
 
@@ -136,26 +131,26 @@ checkit
               ' Then, output them one at a time to the shift register
               ' Then, trigger the shift register to output them all
 
-              mov             stepsize, #%111           ' Force a step size of 1/2 steps
-              mov             outercount, distance
+              mov               stepsize, #%111           ' Force a step size of 1/2 steps
+              mov               outercount, distance
 
 loopstart
               ' By having the loopstart here, rather than right before the call to #output, we have the possibility
               ' to do acceleration/deceleration, where every step of the motor could have a different step size and
               ' different delay vaoue
-              mov             outaccum, stepsize        ' Get the step size
-              shl             outaccum, #2              ' Shift it into position
-              mov             accum, direction          ' Get the direction (0 = clockwise, 1 = counterclockwise)
-              shl             accum, #1                 ' shift into position
-              or              outaccum, accum           ' merge with outaccum
-              or              outaccum, #1              ' set the 'step' bit in outaccum
+              mov               outaccum, stepsize        ' Get the step size
+              shl               outaccum, #2              ' Shift it into position
+              mov               accum, direction          ' Get the direction (0 = clockwise, 1 = counterclockwise)
+              shl               accum, #1                 ' shift into position
+              or                outaccum, accum           ' merge with outaccum
+              or                outaccum, #1              ' set the 'step' bit in outaccum
 
-              mov             downtime, outaccum
-              xor             downtime, #1              ' turn off the step bit
+              mov               downtime, outaccum
+              xor               downtime, #1              ' turn off the step bit
 
-              call            #output
+              call              #output
 
-              waitcnt         time, delay               ' Wait a reasonable time
+              waitcnt           time, delay               ' Wait a reasonable time
 
               ' Now we need to set the step flag to 0 for the motor, so we will then be able to trigger it again.
               ' Question: I am turning on the step for a certain amount of time (20_000 cycles say). Do I need to turn
@@ -164,21 +159,21 @@ loopstart
 
               ' So now we just force out 5 0 characters and then wait
 
-              mov             outaccum, downtime
-              call            #output
+              mov               outaccum, downtime
+              call              #output
 
-              waitcnt         time, halfdelay               ' Wait a reasonable time
+              waitcnt           time, halfdelay               ' Wait a reasonable time
 
-              djnz            outercount, #loopstart
+              djnz              outercount, #loopstart
 
-              wrlong          finished, execute_addr          ' Tell the master control that we're done
-              jmp             #checkit
+              wrlong            finished, execute_addr          ' Tell the master control that we're done
+              jmp               #checkit
 
 
               ' A final output and stop location
 dummy
-              waitcnt         time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
-              jmp             #dummy                    ' <<<<<<<<<<<<<<<<<<<<<<<
+              waitcnt           time, idledelay           ' <<<<<<<<<<<<<<<<<<<<<<< Portable breakpoint
+              jmp               #dummy                    ' <<<<<<<<<<<<<<<<<<<<<<<
 
 ' *****************************************************
 
@@ -217,31 +212,32 @@ output_ret
 
 ' ******************************************************
 
-idledelay     long      20_000
+idledelay               long 20_000
 
-changing      long      1                       ' Signal master controller we're under way
-finished      long      0                       ' Signal master controller we're done
+changing                long 1                       ' Signal master controller we're under way
+finished                long 0                       ' Signal master controller we're done
 
-stepsize      res 1
-delay         res 1
-halfdelay     res 1
-execute       res 1
-distance      res 1
-firstpin      res 1
-direction     res 1
-time          res 1
+stepsize                res 1
+delay                   res 1
+halfdelay               res 1
+execute                 res 1
+distance                res 1
+firstpin                res 1
+direction               res 1
+time                    res 1
 
-execute_addr   res 1
-firstpin_addr  res 1
-direction_addr res 1
-distance_addr  res 1
-delay_addr     res 1
-loopcnt        res 1
-outercount     res 1
-outwork        res 1 ' workspace for the output func
+execute_addr            res 1
+firstpin_addr           res 1
+direction_addr          res 1
+distance_addr           res 1
+delay_addr              res 1
+loopcnt                 res 1
+outercount              res 1
+outwork                 res 1 ' workspace for the output func
 
-outaccum   res   1
-downtime   res   1
-accum      res   1
-base       res   1
-debugpin   res   1
+outaccum                res 1
+downtime                res 1
+accum                   res 1
+base                    res 1
+debugpin                res 1
+
