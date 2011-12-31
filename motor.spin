@@ -136,7 +136,7 @@ checkit
               ' Then, output them one at a time to the shift register
               ' Then, trigger the shift register to output them all
 
-              mov             stepsize, #%001           ' Force a step size of 1/2 steps
+              mov             stepsize, #%111           ' Force a step size of 1/2 steps
               mov             outercount, distance
 
 loopstart

@@ -23,11 +23,11 @@ PUB Main | x
   dira[20]~~
 
   motor_a[direction] := 1
-  motor_a[distance] := 3000
-  motor_a[delay] := 20_000
+  motor_a[distance] := 3200
+  motor_a[delay] := 10_000
 
   motor_b[direction] := 0
-  motor_b[distance] := 3000
+  motor_b[distance] := 3200
   motor_b[delay] := 20_000
 
   Bootup
@@ -53,9 +53,9 @@ PUB Main | x
 
     x += 1
 
-    ' Every 10 steps, trigger the motor again. With the current parameters,
-    ' it takes about 2-3 seconds for the motor to finish and set exec to 0.
-    if (x//5) == 0
+    ' When the exec flag for motor a is 0, that means the motor is done. At that time,
+    ' switch directions and tell it to go again.
+    if (motor_a[exec]) == 0
       motor_a[direction] ^= 1
       motor_a[exec] := 2
 
@@ -63,7 +63,7 @@ PUB Main | x
       motor_b[exec] := 2
 
     outa[20] ^= 1
-    waitcnt(cnt + (clkfreq/2))
+    waitcnt(cnt + (clkfreq/100))
 
 
 PUB Bootup
